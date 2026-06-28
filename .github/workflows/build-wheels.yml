@@ -32,11 +32,11 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install requests pyyaml appdirs cmake ninja
 
-      - name: Build wheel
+      - name: Build wheel (no build isolation)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
         run: |
-          python -m pip wheel --no-deps -w wheelhouse .
+          python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
 
       - name: Verify wheel
         run: |
