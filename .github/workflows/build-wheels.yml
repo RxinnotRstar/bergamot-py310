@@ -32,21 +32,15 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install requests pyyaml appdirs cmake ninja
 
-      - name: Patch FindPCRE2.cmake for CMake 4.x compatibility
+      - name: Install pcre2 via vcpkg
         run: |
-          $file = "3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake"
-          $content = Get-Content $file -Raw
-          $content = $content.Replace(
-            '-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true # Added for pybind11',
-            '-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true' + "`r`n    -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-          )
-          Set-Content $file $content
-          Get-Content $file | Select-String "POLICY_VERSION"
+          C:\vcpkg\vcpkg install pcre2:x64-windows-static
+          echo "CMAKE_PREFIX_PATH=C:\vcpkg\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build wheel (no build isolation)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
-          CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+          CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DSSPLIT_USE_INTERNAL_PCRE2=OFF"
         run: |
           python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
 
