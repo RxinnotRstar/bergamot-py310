@@ -37,16 +37,28 @@ jobs:
           C:\vcpkg\vcpkg install pcre2:x64-windows-static
           echo "CMAKE_PREFIX_PATH=C:\vcpkg\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Build wheel (no build isolation)
+      - name: Build CMake extension
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
           CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DSSPLIT_USE_INTERNAL_PCRE2=OFF"
         run: |
+          python setup.py build_ext 2>&1
+
+      - name: Copy .pyd extension and build wheel
+        run: |
+          # Find the compiled .pyd
+          $pyd = Get-ChildItem -Recurse -Filter "_bergamot*.pyd" | Select-Object -First 1
+          Write-Host "Found .pyd: $($pyd.FullName) ($($pyd.Length) bytes)"
+
+          # Copy to bergamot package dir
+          Copy-Item $pyd.FullName "bindings/python/_bergamot.pyd" -Force
+
+          # Build wheel
           python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
 
-      - name: Verify wheel
+      - name: Verify wheel contains .pyd
         run: |
-          Get-ChildItem wheelhouse/*.whl | ForEach-Object { Write-Host "Built: $($_.Name) ($($_.Length) bytes)" }
+          python -c "import zipfile; z = zipfile.ZipFile((Get-ChildItem wheelhouse/*.whl).FullName); [print(n) for n in z.namelist()]"
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
