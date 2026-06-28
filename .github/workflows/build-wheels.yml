@@ -35,7 +35,7 @@ jobs:
       - name: Build wheel (no build isolation)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
-          CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF"
+          CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
         run: |
           python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
 
