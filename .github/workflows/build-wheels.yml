@@ -32,6 +32,17 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install requests pyyaml appdirs cmake ninja
 
+      - name: Patch FindPCRE2.cmake for CMake 4.x compatibility
+        run: |
+          $file = "3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake"
+          $content = Get-Content $file -Raw
+          $content = $content.Replace(
+            '-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true # Added for pybind11',
+            '-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true' + "`r`n    -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+          )
+          Set-Content $file $content
+          Get-Content $file | Select-String "POLICY_VERSION"
+
       - name: Build wheel (no build isolation)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
