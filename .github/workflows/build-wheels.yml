@@ -50,7 +50,7 @@ jobs:
 
       - name: Verify wheel contains .pyd
         run: |
-          python -c "import zipfile; z = zipfile.ZipFile((Get-ChildItem wheelhouse/*.whl).FullName); [print(n) for n in z.namelist()]"
+          python -c "import zipfile; import glob; z = zipfile.ZipFile(glob.glob('wheelhouse/*.whl')[0]); [print(n, z.getinfo(n).file_size, 'bytes') for n in z.namelist()]"
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
