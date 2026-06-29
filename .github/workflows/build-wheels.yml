@@ -32,15 +32,15 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install requests pyyaml appdirs cmake ninja
 
-      - name: Install pcre2 via vcpkg
+      - name: Install dependencies (pcre2 + protobuf)
         run: |
-          C:\vcpkg\vcpkg install pcre2:x64-windows-static
+          C:\vcpkg\vcpkg install pcre2:x64-windows-static protobuf:x64-windows-static
           echo "CMAKE_PREFIX_PATH=C:\vcpkg\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build wheel (CMake compiles .pyd + pip packages)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
-          CMAKE_ARGS: "-DUSE_SENTENCEPIECE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DSSPLIT_USE_INTERNAL_PCRE2=OFF"
+          CMAKE_ARGS: "-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DSSPLIT_USE_INTERNAL_PCRE2=OFF"
         run: |
           python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
 
