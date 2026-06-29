@@ -16,12 +16,14 @@ jobs:
         python-version: ["3.14"]
 
     steps:
-      - name: Checkout with submodules
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout submodules
+        run: |
+          git submodule update --init --recursive --depth 1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
