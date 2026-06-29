@@ -37,6 +37,25 @@ jobs:
           C:\vcpkg\vcpkg install pcre2:x64-windows-static
           echo "CMAKE_PREFIX_PATH=C:\vcpkg\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Patch shortlist.cpp for split vocab support (Mozilla fix)
+        run: |
+          $file = "3rd_party/marian-dev/src/data/shortlist.cpp"
+          $content = Get-Content $file -Raw
+          
+          # Fix 1: Add data_.resize in constructor
+          $content = $content.Replace(
+            '  prune(threshold);`r`n`r`n  if(!dumpPath.empty())',
+            '  prune(threshold);`r`n`r`n  // Ensure that the data_ has enough entries for the src vocab.`r`n  data_.resize(srcVocab_->size());`r`n`r`n  if(!dumpPath.empty())'
+          )
+          
+          # Fix 2: Fix generate() for split vocabs
+          $oldGen = '  // add aligned target words`r`n  for(auto i : srcSet) {`r`n    if(shared_)`r`n      indexSet.insert(i);`r`n    for(auto& it : data_[i])`r`n      indexSet.insert(it.first);`r`n  }'
+          $newGen = '  // Add the aligned target words from the source, and add the original source tokens`r`n  // as well if the vocab is shared.`r`n  for(auto srcIndex : srcSet) {`r`n    if(shared_) {`r`n      indexSet.insert(srcIndex);`r`n    }`r`n    // Add all of the target probabilities.`r`n    for(auto& it : data_.at(srcIndex)) {`r`n      indexSet.insert(it.first);`r`n    }`r`n  }'
+          $content = $content.Replace($oldGen, $newGen)
+          
+          Set-Content $file $content
+          Write-Host "shortlist.cpp patched with Mozilla fix"
+
       - name: Build wheel (CMake compiles .pyd + pip packages)
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 2
