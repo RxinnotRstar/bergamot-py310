@@ -40,25 +40,23 @@ jobs:
             -DUSE_FBGEMM=OFF `
             -DUSE_SENTENCEPIECE=ON
 
-      - name: Build translator-cli
+      - name: Build all executables
         working-directory: translations/inference
         run: |
-          cmake --build build --config Release --target translator-cli -j 2
+          cmake --build build --config Release --target translator-cli --target marian_decoder --target marian_conv -j 2
 
-      - name: Locate and prepare translator-cli
+      - name: Locate and prepare executables
         working-directory: translations/inference
         run: |
-          $file = Get-ChildItem -Recurse build/ -Filter "translator-cli.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($file) {
-            Write-Host "Found: $($file.FullName) ($($file.Length) bytes)"
-            Copy-Item $file.FullName "translator-cli.exe"
-          } else {
-            Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
-            throw "translator-cli.exe not found!"
+          New-Item -ItemType Directory exes -Force | Out-Null
+          Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "Found: $($_.FullName) ($($_.Length) bytes)"
+            Copy-Item $_.FullName "exes/$($_.Name)"
           }
+          Get-ChildItem exes/ | Select Name, Length
 
-      - name: Upload translator-cli
+      - name: Upload executables
         uses: actions/upload-artifact@v4
         with:
-          name: translator-cli-windows
-          path: translations/inference/translator-cli.exe
+          name: mozilla-translation-exes
+          path: translations/inference/exes/*.exe
