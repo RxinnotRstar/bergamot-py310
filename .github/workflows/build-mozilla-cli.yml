@@ -45,14 +45,20 @@ jobs:
         run: |
           cmake --build build --config Release --target translator-cli -j 2
 
-      - name: List build output
+      - name: Locate and prepare translator-cli
         working-directory: translations/inference
         run: |
-          Get-ChildItem -Recurse build/app/Release -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
-          Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
+          $file = Get-ChildItem -Recurse build/ -Filter "translator-cli.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($file) {
+            Write-Host "Found: $($file.FullName) ($($file.Length) bytes)"
+            Copy-Item $file.FullName "translator-cli.exe"
+          } else {
+            Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
+            throw "translator-cli.exe not found!"
+          }
 
       - name: Upload translator-cli
         uses: actions/upload-artifact@v4
         with:
           name: translator-cli-windows
-          path: translations/inference/build/app/Release/translator-cli.exe
+          path: translations/inference/translator-cli.exe
