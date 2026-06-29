@@ -22,8 +22,30 @@ jobs:
           fetch-depth: 1
 
       - name: Checkout submodules
+        shell: pwsh
         run: |
-          git submodule update --init --recursive --depth 1
+          $ErrorActionPreference = "Continue"
+          Write-Host "=== Git version ==="
+          git --version
+          Write-Host "=== Initial submodule status ==="
+          git submodule status
+          Write-Host "=== Trying submodule update ==="
+          git submodule update --init --recursive --depth 1 2>&1
+          Write-Host "=== Exit code: $LASTEXITCODE ==="
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "=== Retrying without --depth ==="
+              git submodule update --init --recursive 2>&1
+              Write-Host "=== Exit code: $LASTEXITCODE ==="
+          }
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "=== Still failing. Checking .gitmodules ==="
+              Get-Content .gitmodules
+              Write-Host "=== Checking marian-dev submodule specifically ==="
+              git submodule update --init --depth 1 3rd_party/marian-dev 2>&1
+              exit 1
+          }
+          Write-Host "=== Submodules OK ==="
+          git submodule status
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
