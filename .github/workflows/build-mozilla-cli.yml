@@ -1,0 +1,59 @@
+name: Build Mozilla translator-cli
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build_cli:
+    name: Build translator-cli (Windows)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout mozilla/translations
+        uses: actions/checkout@v4
+        with:
+          repository: mozilla/translations
+          path: translations
+          fetch-depth: 1
+
+      - name: Install vcpkg dependencies
+        run: |
+          C:\vcpkg\vcpkg install pcre2:x64-windows-static
+
+      - name: Configure CMake (inference/)
+        env:
+          CMAKE_PREFIX_PATH: C:\vcpkg\installed\x64-windows-static
+        working-directory: translations/inference
+        run: |
+          cmake -B build -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
+            -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" `
+            -DCOMPILE_TESTS=OFF `
+            -DCOMPILE_PYTHON=OFF `
+            -DCOMPILE_WASM=OFF `
+            -DUSE_WASM_COMPATIBLE_SOURCE=OFF `
+            -DUSE_STATIC_LIBS=ON `
+            -DUSE_MKL=OFF `
+            -DUSE_INTGEMM=ON `
+            -DUSE_FBGEMM=OFF `
+            -DUSE_SENTENCEPIECE=ON
+
+      - name: Build translator-cli
+        working-directory: translations/inference
+        run: |
+          cmake --build build --config Release --target translator-cli -j 2
+
+      - name: List build output
+        working-directory: translations/inference
+        run: |
+          Get-ChildItem -Recurse build/app/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
+          Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
+
+      - name: Upload translator-cli
+        uses: actions/upload-artifact@v4
+        with:
+          name: translator-cli-windows
+          path: translations/inference/build/**/translator-cli.exe
