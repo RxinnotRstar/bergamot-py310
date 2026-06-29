@@ -22,13 +22,12 @@ jobs:
         run: |
           C:\vcpkg\vcpkg install pcre2:x64-windows-static
 
-      - name: Configure CMake (inference/)
+      - name: Configure CMake (inference/) with MSVC
         env:
           CMAKE_PREFIX_PATH: C:\vcpkg\installed\x64-windows-static
         working-directory: translations/inference
         run: |
-          cmake -B build -G "Ninja" `
-            -DCMAKE_BUILD_TYPE=Release `
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
             -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" `
             -DCOMPILE_TESTS=OFF `
@@ -49,11 +48,11 @@ jobs:
       - name: List build output
         working-directory: translations/inference
         run: |
-          Get-ChildItem -Recurse build/app/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
+          Get-ChildItem -Recurse build/app/Release -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
           Get-ChildItem -Recurse build/ -Filter "*.exe" -ErrorAction SilentlyContinue | Select FullName, Length
 
       - name: Upload translator-cli
         uses: actions/upload-artifact@v4
         with:
           name: translator-cli-windows
-          path: translations/inference/build/**/translator-cli.exe
+          path: translations/inference/build/app/Release/translator-cli.exe
