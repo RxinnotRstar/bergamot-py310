@@ -48,10 +48,15 @@ jobs:
             "  prune(threshold);`n`n  // Ensure that the data_ has enough entries for the src vocab.`n  data_.resize(srcVocab_->size());`n`n  if(!dumpPath.empty())"
           )
           
-          # Fix 2: Fix generate() for split vocabs
+          # Fix 2: Fix LexicalShortlistGenerator::generate() for split vocabs
           $oldGen = "  // add aligned target words`n  for(auto i : srcSet) {`n    if(shared_)`n      indexSet.insert(i);`n    for(auto& it : data_[i])`n      indexSet.insert(it.first);`n  }"
           $newGen = "  // Add the aligned target words from the source, and add the original source tokens`n  // as well if the vocab is shared.`n  for(auto srcIndex : srcSet) {`n    if(shared_) {`n      indexSet.insert(srcIndex);`n    }`n    // Add all of the target probabilities.`n    for(auto& it : data_.at(srcIndex)) {`n      indexSet.insert(it.first);`n    }`n  }"
           $content = $content.Replace($oldGen, $newGen)
+          
+          # Fix 3: Fix BinaryShortlistGenerator::generate() - bounds check srcIndex against wordToOffsetSize_
+          $oldBin = "  // collect unique words from source`n  // add aligned target words: mark trgTruthTable[word] to 1`n  for(auto word : srcBatch->data()) {`n    WordIndex srcIndex = word.toWordIndex();`n    if(shared_)`n      trgTruthTable[srcIndex] = 1;`n    // If srcIndex has not been encountered, add the corresponding target words`n    if (!srcTruthTable[srcIndex]) {`n      for (uint64_t j = wordToOffset_[srcIndex]; j < wordToOffset_[srcIndex+1]; j++)`n        trgTruthTable[shortLists_[j]] = 1;`n      srcTruthTable[srcIndex] = 1;`n    }`n  }"
+          $newBin = "  // collect unique words from source`n  // add aligned target words: mark trgTruthTable[word] to 1`n  for(auto word : srcBatch->data()) {`n    WordIndex srcIndex = word.toWordIndex();`n    if(shared_)`n      trgTruthTable[srcIndex] = 1;`n    // If srcIndex has not been encountered, add the corresponding target words`n    // Bounds check: wordToOffset_ has wordToOffsetSize_ entries, skip if srcIndex is out of range`n    if (!srcTruthTable[srcIndex] && srcIndex < wordToOffsetSize_ - 1) {`n      for (uint64_t j = wordToOffset_[srcIndex]; j < wordToOffset_[srcIndex+1]; j++)`n        trgTruthTable[shortLists_[j]] = 1;`n      srcTruthTable[srcIndex] = 1;`n    }`n  }"
+          $content = $content.Replace($oldBin, $newBin)
           
           Set-Content $file $content
           # Verify the patch was applied
@@ -63,9 +68,15 @@ jobs:
             exit 1
           }
           if ($patched.Contains("data_.at(srcIndex)")) {
-            Write-Host "SUCCESS: generate() patched (data_.at found)"
+            Write-Host "SUCCESS: LexicalShortlistGenerator generate() patched (data_.at found)"
           } else {
-            Write-Host "FAILURE: generate() patch was NOT applied!"
+            Write-Host "FAILURE: LexicalShortlistGenerator patch was NOT applied!"
+            exit 1
+          }
+          if ($patched.Contains("srcIndex < wordToOffsetSize_ - 1")) {
+            Write-Host "SUCCESS: BinaryShortlistGenerator generate() patched (bounds check found)"
+          } else {
+            Write-Host "FAILURE: BinaryShortlistGenerator patch was NOT applied!"
             exit 1
           }
 
