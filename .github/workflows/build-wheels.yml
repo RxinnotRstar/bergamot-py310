@@ -70,8 +70,15 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
+      - name: List downloaded files
+        run: |
+          Get-ChildItem -Recurse
+        shell: pwsh
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             bergamot-wheel-cp3.10-windows/*.whl
