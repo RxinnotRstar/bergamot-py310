@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.14"]
+        python-version: ["3.10"]
 
     steps:
       - name: Checkout with submodules
@@ -44,17 +44,30 @@ jobs:
           
           # Fix 1: Add data_.resize in constructor
           $content = $content.Replace(
-            '  prune(threshold);`r`n`r`n  if(!dumpPath.empty())',
-            '  prune(threshold);`r`n`r`n  // Ensure that the data_ has enough entries for the src vocab.`r`n  data_.resize(srcVocab_->size());`r`n`r`n  if(!dumpPath.empty())'
+            "  prune(threshold);`n`n  if(!dumpPath.empty())",
+            "  prune(threshold);`n`n  // Ensure that the data_ has enough entries for the src vocab.`n  data_.resize(srcVocab_->size());`n`n  if(!dumpPath.empty())"
           )
           
           # Fix 2: Fix generate() for split vocabs
-          $oldGen = '  // add aligned target words`r`n  for(auto i : srcSet) {`r`n    if(shared_)`r`n      indexSet.insert(i);`r`n    for(auto& it : data_[i])`r`n      indexSet.insert(it.first);`r`n  }'
-          $newGen = '  // Add the aligned target words from the source, and add the original source tokens`r`n  // as well if the vocab is shared.`r`n  for(auto srcIndex : srcSet) {`r`n    if(shared_) {`r`n      indexSet.insert(srcIndex);`r`n    }`r`n    // Add all of the target probabilities.`r`n    for(auto& it : data_.at(srcIndex)) {`r`n      indexSet.insert(it.first);`r`n    }`r`n  }'
+          $oldGen = "  // add aligned target words`n  for(auto i : srcSet) {`n    if(shared_)`n      indexSet.insert(i);`n    for(auto& it : data_[i])`n      indexSet.insert(it.first);`n  }"
+          $newGen = "  // Add the aligned target words from the source, and add the original source tokens`n  // as well if the vocab is shared.`n  for(auto srcIndex : srcSet) {`n    if(shared_) {`n      indexSet.insert(srcIndex);`n    }`n    // Add all of the target probabilities.`n    for(auto& it : data_.at(srcIndex)) {`n      indexSet.insert(it.first);`n    }`n  }"
           $content = $content.Replace($oldGen, $newGen)
           
           Set-Content $file $content
-          Write-Host "shortlist.cpp patched with Mozilla fix"
+          # Verify the patch was applied
+          $patched = Get-Content $file -Raw
+          if ($patched.Contains("data_.resize(srcVocab_->size())")) {
+            Write-Host "SUCCESS: shortlist.cpp patched with Mozilla fix (data_.resize found)"
+          } else {
+            Write-Host "FAILURE: Patch was NOT applied!"
+            exit 1
+          }
+          if ($patched.Contains("data_.at(srcIndex)")) {
+            Write-Host "SUCCESS: generate() patched (data_.at found)"
+          } else {
+            Write-Host "FAILURE: generate() patch was NOT applied!"
+            exit 1
+          }
 
       - name: Build wheel (CMake compiles .pyd + pip packages)
         env:
